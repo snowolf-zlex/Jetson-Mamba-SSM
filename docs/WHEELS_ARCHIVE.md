@@ -128,30 +128,42 @@ python scripts/verify.py
 
 ## 从源码编译
 
-如果预编译 wheel 不适用，可按以下步骤从源码编译：
+如果预编译 wheel 不适用，可按以下步骤从源码编译。
+
+**重要**: 必须先打补丁修复 mamba 源码，否则编译会失败！
 
 ```bash
 # 1. 设置环境
 export CUDA_HOME=/usr/local/cuda-12.6
 pip install wheel packaging ninja
 
-# 2. 编译 causal_conv1d (约 20-40 分钟)
+# 2. 克隆源码
 git clone https://github.com/Dao-AILab/causal-conv1d.git
-cd causal-conv1d
+git clone https://github.com/state-spaces/mamba.git
+
+# 3. 应用 Jetson 补丁到 mamba 源码（必须先修复！）
+cd mamba
+git checkout v2.2.4
+patch -p1 < /path/to/Jetson-Mamba-SSM/patches/00_selective_scan_interface.py.patch
+patch -p1 < /path/to/Jetson-Mamba-SSM/patches/01_ssd_combined.py.patch
+
+# 4. 编译并安装 causal_conv1d (约 2 小时)
+cd ../causal-conv1d
 git checkout v1.6.0
 pip install .  # 注意: 不要使用 -e 选项
 
-# 3. 编译 mamba-ssm (约 1-2 分钟)
-cd ..
-git clone https://github.com/state-spaces/mamba.git
-cd mamba
-git checkout v2.2.4
+# 5. 编译并安装 mamba-ssm (约 1 小时)
+cd ../mamba
 pip install .  # 注意: 不要使用 -e 选项
 
-# 4. 应用 Jetson 补丁
+# 6. 应用运行时补丁
 cd /path/to/Jetson-Mamba-SSM
 python scripts/apply_patches.py
 ```
+
+**为什么必须先打补丁？**
+
+原始 mamba-ssm 源码使用 `causal_conv1d_cuda.causal_conv1d_fwd`，这在 Jetson 上会因为 `libc10.so` 依赖问题导致编译失败。补丁将代码改为使用 `causal_conv1d_fn`，这是编译成功的关键。
 
 ---
 

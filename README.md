@@ -51,28 +51,37 @@ python scripts/apply_patches.py
 
 ### 方法 2: 从源码编译（不推荐，耗时较长）
 
-如果预编译 wheel 不适用于您的环境，可以从源码编译：
+如果预编译 wheel 不适用于您的环境，可以从源码编译。
+
+**重要**: 必须先打补丁修复源码，否则编译会失败！
 
 ```bash
-# 1. 克隆并编译 causal_conv1d (约 2 小时)
+# 1. 克隆源码
 git clone https://github.com/Dao-AILab/causal-conv1d.git
-cd causal-conv1d
-git checkout v1.6.0  # 使用与本项目测试的版本
-pip install .
-
-# 2. 克隆并编译 mamba-ssm (约 1 小时)
-cd ..
 git clone https://github.com/state-spaces/mamba.git
+
+# 2. 应用 Jetson 补丁（必须先修复源码）
 cd mamba
-git checkout v2.2.4  # 使用与本项目测试的版本
+git checkout v2.2.4
+patch -p1 < /path/to/Jetson-Mamba-SSM/patches/00_selective_scan_interface.py.patch
+patch -p1 < /path/to/Jetson-Mamba-SSM/patches/01_ssd_combined.py.patch
+
+# 3. 编译并安装 causal_conv1d (约 2 小时)
+cd ../causal-conv1d
+git checkout v1.6.0
+export CUDA_HOME=/usr/local/cuda-12.6
 pip install .
 
-# 3. 应用 Jetson 补丁
-cd Jetson-Mamba-SSM
+# 4. 编译并安装 mamba-ssm (约 1 小时，已打补丁)
+cd ../mamba
+pip install .
+
+# 5. 应用运行时补丁
+cd /path/to/Jetson-Mamba-SSM
 python scripts/apply_patches.py
 ```
 
-> **注意**: 实际编译时间约 3 小时 (含调试)，建议使用预编译 wheel。
+> **注意**: 必须先对 mamba 源码打补丁，否则会因 libc10.so 依赖问题导致编译失败。实际编译时间约 3 小时 (含调试)，强烈建议使用预编译 wheel。
 
 ### 方法 3: 使用本项目的修改后源文件
 
