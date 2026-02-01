@@ -24,6 +24,53 @@ Mamba-SSM 官方仅提供 x86_64 架构的预编译包，本项目提供了在 J
 - 添加 `sitecustomize.py` 修复缺失的分布式 API
 - 提供 selective_scan wrapper 用于 YOLO 集成
 
+## 补丁机制说明
+
+本项目需要**两次补丁**来解决问题：
+
+### 1️⃣ 编译前补丁（源码修改）
+
+官方 mamba-ssm 源码使用 `causal_conv1d_cuda.causal_conv1d_fwd`，在 Jetson 上会因为 `libc10.so` 依赖问题导致**编译失败**。
+
+**补丁内容**：
+```python
+# 修改前 (官方源码)
+conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(...)
+
+# 修改后 (Jetson 兼容)
+if causal_conv1d_fn is not None:
+    conv1d_out = causal_conv1d_fn(...)
+```
+
+**涉及文件**：
+- `mamba_ssm/ops/selective_scan_interface.py`
+- `mamba_ssm/ops/triton/ssd_combined.py`
+
+### 2️⃣ 编译后补丁（运行时修复）
+
+编译安装完成后，还需要应用运行时补丁：
+
+**补丁内容**：
+- `sitecustomize.py` → 修复 `torch.distributed` API 缺失
+- `fix_causal_conv1d.py` → 创建 `causal_conv1d_cuda` 兼容层
+- `selective_scan_cuda.py` → YOLO 集成 wrapper
+
+### 预编译 wheel 方式
+
+使用预编译 wheel 时，**跳过编译前补丁**（源码已修改并编译好），只需运行时补丁：
+
+```
+安装 wheel → apply_patches.py → 完成 ✓
+```
+
+### 源码编译方式
+
+从源码编译时，需要**两次补丁**：
+
+```
+官方源码 → 编译前补丁 → 编译 → 编译后补丁 → 完成
+```
+
 ## 快速开始
 
 ### 方法 1: 使用预编译 wheel (推荐 - 最简单)
