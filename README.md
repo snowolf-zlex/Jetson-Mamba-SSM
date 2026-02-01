@@ -54,13 +54,13 @@ python scripts/apply_patches.py
 如果预编译 wheel 不适用于您的环境，可以从源码编译：
 
 ```bash
-# 1. 克隆并编译 causal-conv1d (约 20-40 分钟)
+# 1. 克隆并编译 causal_conv1d (约 2 小时)
 git clone https://github.com/Dao-AILab/causal-conv1d.git
 cd causal-conv1d
 git checkout v1.6.0  # 使用与本项目测试的版本
 pip install .
 
-# 2. 克隆并编译 mamba-ssm (约 1-2 分钟)
+# 2. 克隆并编译 mamba-ssm (约 1 小时)
 cd ..
 git clone https://github.com/state-spaces/mamba.git
 cd mamba
@@ -71,6 +71,8 @@ pip install .
 cd Jetson-Mamba-SSM
 python scripts/apply_patches.py
 ```
+
+> **注意**: 实际编译时间约 3 小时 (含调试)，建议使用预编译 wheel。
 
 ### 方法 3: 使用本项目的修改后源文件
 
