@@ -49,7 +49,28 @@ pip install wheels/mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
 python scripts/apply_patches.py
 ```
 
-### 方法 2: 从源码编译（不推荐）
+### 方法 2: 从源码编译（不推荐，耗时较长）
+
+如果预编译 wheel 不适用于您的环境，可以从源码编译：
+
+```bash
+# 1. 克隆并编译 causal-conv1d (约 20-40 分钟)
+git clone https://github.com/Dao-AILab/causal-conv1d.git
+cd causal-conv1d
+git checkout v1.6.0  # 使用与本项目测试的版本
+pip install .
+
+# 2. 克隆并编译 mamba-ssm (约 1-2 分钟)
+cd ..
+git clone https://github.com/state-spaces/mamba.git
+cd mamba
+git checkout v2.2.4  # 使用与本项目测试的版本
+pip install .
+
+# 3. 应用 Jetson 补丁
+cd Jetson-Mamba-SSM
+python scripts/apply_patches.py
+```
 
 ### 方法 3: 使用本项目的修改后源文件
 
@@ -141,37 +162,31 @@ if causal_conv1d_fn is not None:
 
 本项目基于以下版本的 mamba-ssm 和 causal-conv1d 进行开发和测试：
 
-| 包 | 版本 | 说明 |
-|------|------|------|
-| **mamba-ssm** | 2.2.4 | 状态空间模型主包 |
-| **causal-conv1d** | 1.6.0 | 一维卷积依赖 |
+| 包 | 版本 | 实际编译时间 | 编译模式 |
+|------|------|-------------|----------|
+| **mamba-ssm** | 2.2.4 | ~1 小时 | Release + CUDA |
+| **causal-conv1d** | 1.6.0 | ~2 小时 | Release + CUDA |
+
+**实际编译记录** (2026-02-01):
+- 21:30 开始 → 00:30 完成 (总耗时 ~3 小时)
+- 包含大量调试和修复 bug 的时间
+
+### 编译环境
+
+- **硬件**: Jetson Orin (ARM64, Ampere GPU, 64GB RAM)
+- **操作系统**: Linux 5.15.148-tegra (JetPack 5.x/6.x)
+- **CUDA**: 12.6
+- **编译器**: GCC 11.4.0 / NVCC 12.6
+- **编译模式**: Release (非 editable)
+
+**重要**: 编译时使用 `pip install .` (非 `-e` 选项)，并设置 `CUDA_HOME` 环境变量。
 
 **源码仓库**：
 - https://github.com/state-spaces/mamba (mamba-ssm)
 - https://github.com/Dao-AILab/causal-conv1d
 
-### 从源码编译（不推荐，耗时较长）
+> 💡 **强烈推荐**: 使用预编译 wheel 跳过 3 小时的编译过程，直接安装使用。
 
-如果预编译 wheel 不适用于您的环境，可以从源码编译：
-
-```bash
-# 1. 克隆并编译 causal-conv1d (约 20-40 分钟)
-git clone https://github.com/Dao-AILab/causal-conv1d.git
-cd causal-conv1d
-git checkout v1.6.0  # 使用与本项目测试的版本
-pip install .
-
-# 2. 克隆并编译 mamba-ssm (约 1-2 分钟)
-cd ..
-git clone https://github.com/state-spaces/mamba.git
-cd mamba
-git checkout v2.2.4  # 使用与本项目测试的版本
-pip install .
-
-# 3. 应用 Jetson 补丁
-cd Jetson-Mamba-SSM
-python scripts/apply_patches.py
-```
 
 ## 兼容性
 
