@@ -7,6 +7,17 @@
 
 ---
 
+## 版本依赖
+
+| 包 | 版本 | 源码仓库 |
+|------|------|----------|
+| **mamba-ssm** | 2.2.4 | [state-spaces/mamba](https://github.com/state-spaces/mamba) |
+| **causal-conv1d** | 1.6.0 | [Dao-AILab/causal-conv1d](https://github.com/Dao-AILab/causal-conv1d) |
+
+这些 wheel 文件是从上述版本的源码在 Jetson Orin (ARM64) 上编译而来。
+
+---
+
 ## Wheel 文件
 
 | 文件 | 大小 | 说明 |

@@ -49,21 +49,7 @@ pip install wheels/mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
 python scripts/apply_patches.py
 ```
 
-### 方法 2: 从 PyPI 安装 + 补丁
-
-```bash
-# 1. 编译 causal_conv1d
-cd causal_conv1d
-pip install .
-
-# 2. 编译 mamba-ssm
-cd mamba-ssm
-pip install .
-
-# 3. 应用补丁
-cd jetson-mamba-ssm
-python scripts/apply_patches.py
-```
+### 方法 2: 从源码编译（不推荐）
 
 ### 方法 3: 使用本项目的修改后源文件
 
@@ -151,6 +137,42 @@ if causal_conv1d_fn is not None:
 
 为 YOLO 集成提供 `selective_scan_cuda_core` wrapper。
 
+## 版本依赖
+
+本项目基于以下版本的 mamba-ssm 和 causal-conv1d 进行开发和测试：
+
+| 包 | 版本 | 说明 |
+|------|------|------|
+| **mamba-ssm** | 2.2.4 | 状态空间模型主包 |
+| **causal-conv1d** | 1.6.0 | 一维卷积依赖 |
+
+**源码仓库**：
+- https://github.com/state-spaces/mamba (mamba-ssm)
+- https://github.com/Dao-AILab/causal-conv1d
+
+### 从源码编译（不推荐，耗时较长）
+
+如果预编译 wheel 不适用于您的环境，可以从源码编译：
+
+```bash
+# 1. 克隆并编译 causal-conv1d (约 20-40 分钟)
+git clone https://github.com/Dao-AILab/causal-conv1d.git
+cd causal-conv1d
+git checkout v1.6.0  # 使用与本项目测试的版本
+pip install .
+
+# 2. 克隆并编译 mamba-ssm (约 1-2 分钟)
+cd ..
+git clone https://github.com/state-spaces/mamba.git
+cd mamba
+git checkout v2.2.4  # 使用与本项目测试的版本
+pip install .
+
+# 3. 应用 Jetson 补丁
+cd Jetson-Mamba-SSM
+python scripts/apply_patches.py
+```
+
 ## 兼容性
 
 | 组件 | 版本 |
@@ -160,8 +182,6 @@ if causal_conv1d_fn is not None:
 | Python | 3.10 |
 | CUDA | 12.x |
 | PyTorch | 2.x (JetPack 版本) |
-| mamba-ssm | 2.2.4 |
-| causal-conv1d | 1.6.0 |
 
 ## 已知问题
 
@@ -170,8 +190,9 @@ if causal_conv1d_fn is not None:
 
 ## 参考文档
 
-- [BUILD_GUIDE.md](docs/BUILD_GUIDE.md) - 完整编译指南
-- [FIX_EXPLANATION.md](docs/FIX_EXPLANATION.md) - 详细修复说明
+- [WHEELS_ARCHIVE.md](docs/WHEELS_ARCHIVE.md) - 预编译 wheel 详细说明
+- [JETSON_MAMBA_SSM_BUILD_GUIDE.md](docs/JETSON_MAMBA_SSM_BUILD_GUIDE.md) - 完整编译指南
+- [MAMBA_SSM_JETSON_FIX.md](docs/MAMBA_SSM_JETSON_FIX.md) - 修复说明
 
 ## 许可证
 
