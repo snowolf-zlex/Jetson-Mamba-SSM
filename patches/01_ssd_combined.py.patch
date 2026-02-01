@@ -1,0 +1,53 @@
+--- a/mamba_ssm/ops/triton/ssd_combined.py
++++ b/mamba_ssm/ops/triton/ssd_combined.py
+@@ -776,10 +776,20 @@ class MambaChunkScanCombinedFn(torch.autograd.Function):
+         assert dt_bias.shape == (nheads,)
+         assert A.shape == (nheads,)
+         zx0, z, xBC, dt = torch.split(zxbcdt, [2 * d_nonssm, dim, dim + ngroups * dstate * 2, nheads], dim=-1)
+         seq_idx = seq_idx.contiguous() if seq_idx is not None else None
+-        xBC_conv = rearrange(
+-            causal_conv1d_cuda.causal_conv1d_fwd(rearrange(xBC, "b s d -> b d s"),
+-                                                 conv1d_weight, conv1d_bias, seq_idx, None, None, activation in ["silu", "swish"]),
+-            "b d s -> b s d"
+-        )
++        # Patch: Use causal_conv1d_fn directly instead of causal_conv1d_cuda
++        # This avoids libc10.so dependency issue on Jetson
++        if causal_conv1d_fn is not None:
++            conv_out = causal_conv1d_fn(
++                rearrange(xBC, "b s d -> b d s"),
++                conv1d_weight, conv1d_bias,
++                seq_idx=seq_idx, initial_states=None, final_states_out=None,
++                activation=activation if activation in ["silu", "swish"] else None
++            )
++        else:
++            conv_out = causal_conv1d_cuda.causal_conv1d_fwd(
++                rearrange(xBC, "b s d -> b d s"),
++                conv1d_weight, conv1d_bias, seq_idx, None, None, activation in ["silu", "swish"]
++            )
++        xBC_conv = rearrange(conv_out, "b d s -> b s d")
+@@ -859,10 +869,20 @@ class MambaChunkScanCombinedFn(torch.autograd.Function):
+         recompute_output = outproj_weight is not None
+         if recompute_output:
+             out_recompute = torch.empty(*out.shape[:2], d_nonssm + dim, device=out.device, dtype=out.dtype)
+             out0_recompute, out1_recompute = out_recompute.split([d_nonssm, dim], dim=-1)
+         zx0, z, xBC, dt = torch.split(zxbcdt, [2 * d_nonssm, dim, dim + 2 * ctx.ngroups * dstate, nheads], dim=-1)
+         # Recompute x, B, C
+-        xBC_conv = rearrange(
+-            causal_conv1d_cuda.causal_conv1d_fwd(rearrange(xBC, "b s d -> b d s"),
+-                                                 conv1d_weight, conv1d_bias, seq_idx, None, None, ctx.activation in ["silu", "swish"]),
+-            "b d s -> b s d"
+-        )
++        # Patch: Use causal_conv1d_fn directly instead of causal_conv1d_cuda
++        if causal_conv1d_fn is not None:
++            conv_out = causal_conv1d_fn(
++                rearrange(xBC, "b s d -> b d s"),
++                conv1d_weight, conv1d_bias,
++                seq_idx=seq_idx, initial_states=None, final_states_out=None,
++                activation=ctx.activation if ctx.activation in ["silu", "swish"] else None
++            )
++        else:
++            conv_out = causal_conv1d_cuda.causal_conv1d_fwd(
++                rearrange(xBC, "b s d -> b d s"),
++                conv1d_weight, conv1d_bias, seq_idx, None, None, ctx.activation in ["silu", "swish"]
++            )
++        xBC_conv = rearrange(conv_out, "b d s -> b s d")

@@ -1,0 +1,36 @@
+[project]
+name = "jetson-mamba-ssm"
+version = "1.0.0"
+description = "Mamba-SSM patches and tools for NVIDIA Jetson (ARM64)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Jetson Mamba-SSM Contributors"}
+]
+keywords = ["mamba", "ssm", "jetson", "arm64", "cuda", "yolo"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/state-spaces/mamba"
+Documentation = "https://github.com/state-spaces/mamba"
+Source = "https://github.com/state-spaces/mamba"
+Tracker = "https://github.com/state-spaces/mamba/issues"
+
+[project.scripts]
+jetson-mamba-apply-patches = "scripts.apply_patches:main"
+jetson-mamba-verify = "scripts.verify:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []

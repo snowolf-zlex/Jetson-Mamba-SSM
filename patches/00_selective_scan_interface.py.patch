@@ -1,0 +1,54 @@
+--- a/mamba_ssm/ops/selective_scan_interface.py
++++ b/mamba_ssm/ops/selective_scan_interface.py
+@@ -306,9 +306,17 @@ class SelectiveScanFn(torch.autograd.Function):
+     @staticmethod
+     @custom_bwd
+     def backward(ctx, dout):
+-        # dout: (batch, seqlen, dim)
+-        assert causal_conv1d_cuda is not None, "causal_conv1d_cuda is not available. Please install causal-conv1d."
++        # Patch: Use causal_conv1d_fn directly instead of causal_conv1d_cuda
++        # This avoids libc10.so dependency issue on Jetson
++        # dout: (batch, seqlen, dim)
++        assert causal_conv1d_fn is not None or causal_conv1d_cuda is not None, "causal_conv1d_fn or causal_conv1d_cuda is not available. Please install causal-conv1d."
+         (xz, conv1d_weight, conv1d_bias, x_dbl, x_proj_weight, delta_proj_weight, out_proj_weight,
+          conv1d_out, delta, A, B, C, D, delta_bias, scan_intermediates, b_rms_weight, c_rms_weight, dt_rms_weight, out) = ctx.saved_tensors
+@@ -316,7 +324,15 @@ class SelectiveScanFn(torch.autograd.Function):
+         x, z = xz.chunk(2, dim=1)
+         if dout.stride(-1) != 1:
+             dout = dout.contiguous()
+-        if ctx.checkpoint_lvl == 1:
++        if ctx.checkpoint_lvl == 1:
++            # Patch: Use causal_conv1d_fn directly instead of causal_conv1d_cuda
++            if causal_conv1d_fn is not None:
++                conv1d_out = causal_conv1d_fn(
++                    x, conv1d_weight, conv1d_bias,
++                    seq_idx=None, initial_states=None, final_states_out=None,
++                    activation="silu"
++                )
++            else:
++                conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(
++                    x, conv1d_weight, conv1d_bias, None, None, None, True
++                )
+             delta = rearrange(delta_proj_weight @ x_dbl[:, :delta_rank].t(),
+                               "d (b l) -> b d l", l = L)
+@@ -208,10 +208,20 @@ class MambaInnerFn(torch.autograd.Function):
+         conv1d_weight = rearrange(conv1d_weight, "d 1 w -> d w")
+         x, z = xz.chunk(2, dim=1)
+         conv1d_bias = conv1d_bias.contiguous() if conv1d_bias is not None else None
+-        conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(
+-            x, conv1d_weight, conv1d_bias, None, None, None, True
+-        )
++        # Patch: Use causal_conv1d_fn directly instead of causal_conv1d_cuda
++        # This avoids libc10.so dependency issue on Jetson
++        if causal_conv1d_fn is not None:
++            conv1d_out = causal_conv1d_fn(
++                x, conv1d_weight, conv1d_bias,
++                seq_idx=None, initial_states=None, final_states_out=None,
++                activation="silu"
++            )
++        elif causal_conv1d_cuda is not None:
++            conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(
++                x, conv1d_weight, conv1d_bias, None, None, None, True
++            )
++        else:
++            raise RuntimeError("Neither causal_conv1d_fn nor causal_conv1d_cuda is available")
