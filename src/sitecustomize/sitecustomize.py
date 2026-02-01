@@ -54,10 +54,20 @@ try:
     import importlib.util
 
     # Use absolute path - don't rely on sys.path
-    project_dir = '/home/jetson/pythonProject'
-    fix_path = os.path.join(project_dir, 'fix_causal_conv1d.py')
+    # Try multiple possible project directories
+    project_dirs = [
+        '/home/jetson/jetson-mamba-ssm',  # Default installation path
+        '/home/jetson/pythonProject',      # Legacy path
+    ]
 
-    if os.path.exists(fix_path):
+    fix_path = None
+    for project_dir in project_dirs:
+        path = os.path.join(project_dir, 'src/fix_causal_conv1d.py')
+        if os.path.exists(path):
+            fix_path = path
+            break
+
+    if fix_path and os.path.exists(fix_path):
         spec = importlib.util.spec_from_file_location('fix_causal_conv1d', fix_path)
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)

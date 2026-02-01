@@ -26,21 +26,30 @@ Mamba-SSM 官方仅提供 x86_64 架构的预编译包，本项目提供了在 J
 
 ## 快速开始
 
-### 方法 1: 使用预编译 wheel (推荐)
+### 方法 1: 使用预编译 wheel (推荐 - 最简单)
+
+```bash
+cd /home/jetson/jetson-mamba-ssm
+
+# 一键安装 (包含 wheel 安装 + 补丁应用)
+python scripts/install_wheels.py
+```
+
+或手动安装:
 
 ```bash
 # 设置环境
 export CUDA_HOME=/usr/local/cuda-12.6
 
-# 安装
-pip install causal_conv1d
-pip install mamba-ssm
+# 安装预编译的 wheel 文件
+pip install wheels/causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl
+pip install wheels/mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
 
-# 应用补丁
+# 应用运行时补丁
 python scripts/apply_patches.py
 ```
 
-### 方法 2: 从源码编译
+### 方法 2: 从 PyPI 安装 + 补丁
 
 ```bash
 # 1. 编译 causal_conv1d
@@ -84,27 +93,33 @@ python scripts/verify.py
 jetson-mamba-ssm/
 ├── README.md              # 本文件
 ├── LICENSE                # MIT 许可证
+├── wheels/                # 预编译 wheel 文件 (Jetson ARM64)
+│   ├── causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl
+│   └── mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
 ├── patches/               # Git 格式补丁
-│   ├── 0001-fix-libc10-so-dependency.patch
-│   ├── 0002-fix-torch-distributed-api.patch
-│   └── 0003-fix-selective-scan-cuda-core.patch
+│   ├── 00_selective_scan_interface.py.patch
+│   └── 01_ssd_combined.py.patch
 ├── src/                   # 修改后的源文件
-│   ├── sitecustomize.py   # 分布式 API 修复
-│   ├── selective_scan_cuda.py  # selective_scan shim
-│   ├── mamba_ssm/         # mamba-ssm 修改文件
+│   ├── fix_causal_conv1d.py      # causal_conv1d_cuda 兼容层
+│   ├── sitecustomize/            # 分布式 API 修复
+│   ├── selective_scan_cuda.py    # selective_scan shim
+│   ├── mamba_ssm/                # mamba-ssm 修改文件
 │   │   ├── ops/
 │   │   │   ├── selective_scan_interface.py
 │   │   │   └── triton/ssd_combined.py
 │   │   └── distributed/distributed_utils.py
 │   └── yolo/
-│       └── mamba_yolo.py  # YOLO Mamba 集成
+│       └── mamba_yolo.py         # YOLO Mamba 集成
 ├── scripts/               # 安装和验证脚本
-│   ├── apply_patches.py   # 应用补丁
-│   ├── install.py         # 安装修改后的文件
-│   └── verify.py          # 验证安装
+│   ├── install_wheels.py         # 安装预编译 wheel
+│   ├── apply_patches.py          # 应用运行时补丁
+│   ├── verify.py                 # 验证安装
+│   ├── check_mamba_install.py    # 全面检查脚本
+│   └── run_with_mamba.sh         # 运行环境封装脚本
 └── docs/                  # 文档
-    ├── BUILD_GUIDE.md     # 编译指南
-    └── FIX_EXPLANATION.md # 修复说明
+    ├── WHEELS_ARCHIVE.md         # 预编译 wheel 说明
+    ├── JETSON_MAMBA_SSM_BUILD_GUIDE.md  # 编译指南
+    └── MAMBA_SSM_JETSON_FIX.md   # 修复说明
 ```
 
 ## 修改说明
