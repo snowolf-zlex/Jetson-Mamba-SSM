@@ -18,7 +18,7 @@ Patched the `mamba_ssm` source code to use `causal_conv1d_fn` directly instead o
 
 ## Files Modified
 
-### 1. `/home/jetson/.local/lib/python3.10/site-packages/mamba_ssm/ops/selective_scan_interface.py`
+### 1. `~/.local/lib/python3.10/site-packages/mamba_ssm/ops/selective_scan_interface.py`
 
 **Line 309 (assert):**
 ```python
@@ -58,7 +58,7 @@ else:
     conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(...)
 ```
 
-### 2. `/home/jetson/.local/lib/python3.10/site-packages/mamba_ssm/ops/triton/ssd_combined.py`
+### 2. `~/.local/lib/python3.10/site-packages/mamba_ssm/ops/triton/ssd_combined.py`
 
 **Lines 779-782 (forward pass):**
 ```python

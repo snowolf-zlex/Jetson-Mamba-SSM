@@ -1,0 +1,539 @@
+#!/usr/bin/env python3
+"""
+准备 GitHub Release 文件
+
+将 wheel 文件和 .so 压缩包统一整理到 release/ 目录。
+
+使用方法:
+    python scripts/utils/prepare_release.py
+
+作者: jetson-mamba-ssm 项目
+日期: 2026-02-02
+"""
+
+import os
+import sys
+import shutil
+from pathlib import Path
+from datetime import datetime
+import tarfile
+
+# 颜色输出
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
+
+def print_header(msg):
+    print(f"\n{CYAN}{'=' * 60}{RESET}")
+    print(f"{BLUE}{msg}{RESET}")
+    print(f"{CYAN}{'=' * 60}{RESET}\n")
+
+
+def print_info(msg):
+    print(f"{BLUE}[INFO]{RESET} {msg}")
+
+
+def print_success(msg):
+    print(f"{GREEN}[✓]{RESET} {msg}")
+
+
+def print_error(msg):
+    print(f"{RED}[✗]{RESET} {msg}")
+
+
+def print_warning(msg):
+    print(f"{YELLOW}[!]{RESET} {msg}")
+
+
+def get_version_info():
+    """获取版本信息"""
+    return {
+        'mamba_ssm': '2.2.4+jetson',
+        'causal_conv1d': '1.6.0+jetson',
+        'date': datetime.now().strftime("%Y-%m-%d"),
+        'timestamp': datetime.now().strftime("%Y%m%d_%H%M%S")
+    }
+
+
+def prepare_release_files(project_root):
+    """准备 Release 文件"""
+    print_header("准备 GitHub Release 文件")
+
+    version_info = get_version_info()
+    release_dir = project_root / "release" / version_info['date']
+    release_dir.mkdir(parents=True, exist_ok=True)
+
+    print_info(f"Release 目录: {release_dir}")
+    print_info(f"版本: {version_info['mamba_ssm']}")
+    print()
+
+    # 查找源文件
+    wheels_dir = project_root / "wheels"
+    backup_dir = project_root / "backup"
+
+    # 需要发布的文件
+    files_to_copy = []
+
+    # 1. mamba_ssm wheel
+    mamba_wheel = wheels_dir / f"mamba_ssm-{version_info['mamba_ssm']}-cp310-cp310-linux_aarch64.whl"
+    if mamba_wheel.exists():
+        files_to_copy.append({
+            'src': mamba_wheel,
+            'dst_name': f"mamba_ssm-{version_info['mamba_ssm']}-cp310-cp310-linux_aarch64.whl",
+            'type': 'wheel',
+            'description': 'Mamba-SSM with complete patches'
+        })
+        print_success(f"✓ {mamba_wheel.name}")
+    else:
+        print_error(f"✗ {mamba_wheel.name} 未找到")
+
+    # 2. causal_conv1d wheel
+    causal_wheel = wheels_dir / f"causal_conv1d-{version_info['causal_conv1d']}-cp310-cp310-linux_aarch64.whl"
+    if causal_wheel.exists():
+        files_to_copy.append({
+            'src': causal_wheel,
+            'dst_name': causal_wheel.name,
+            'type': 'wheel',
+            'description': 'Causal-Conv1d with libc10.so compatibility layer'
+        })
+        print_success(f"✓ {causal_wheel.name}")
+    else:
+        print_error(f"✗ {causal_wheel.name} 未找到")
+
+    print()
+
+    # 3. 创建 .so 文件压缩包
+    print_info("创建 .so 文件压缩包...")
+    so_archive_name = f"mamba_ssm_so_files_{version_info['timestamp']}.tar.gz"
+    so_archive_path = release_dir / so_archive_name
+
+    # 检查是否已存在
+    if so_archive_path.exists():
+        print_warning(f"压缩包已存在: {so_archive_path}")
+    else:
+        site_packages = Path("/home/jetson/.local/lib/python3.10/site-packages")
+        so_files = []
+
+        # 查找 .so 文件
+        for so_file in site_packages.glob("*causal_conv1d*.so"):
+            if 'aarch64' in so_file.name:
+                so_files.append(so_file)
+
+        for so_file in site_packages.glob("*selective_scan*.so"):
+            if 'aarch64' in so_file.name:
+                so_files.append(so_file)
+
+        if so_files:
+            # 创建压缩包
+            import tempfile
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir) / "so_files"
+                temp_path.mkdir()
+
+                total_size = 0
+                for so_file in so_files:
+                    dst = temp_path / so_file.name
+                    shutil.copy2(so_file, dst)
+                    total_size += so_file.stat().st_size
+                    size_mb = so_file.stat().st_size / (1024**2)
+                    print_info(f"  {so_file.name} ({size_mb:.1f} MB)")
+
+                # 创建 README
+                readme_content = f"""# Mamba-SSM CUDA Extension .so Files
+
+## 编译信息
+
+- 备份时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+- JetPack 版本: R36 (release), REVISION: 4.7
+- GPU 架构: NVIDIA Ampere (Orin)
+- Python 版本: 3.10.12
+- CUDA 版本: 12.6
+- TensorRT 版本: 10.7.0
+
+## 文件列表
+
+"""
+                for so_file in so_files:
+                    size_mb = so_file.stat().st_size / (1024**2)
+                    readme_content += f"- `{so_file.name}` ({size_mb:.1f} MB)\n"
+
+                readme_content += f"""
+## 总大小
+
+{total_size / (1024**2):.1f} MB (压缩前)
+
+## 解压安装方法
+
+```bash
+# 解压
+tar -xzf {so_archive_name}
+cd so_files
+
+# 复制到 site-packages
+sudo cp *.so /usr/local/lib/python3.10/site-packages/
+```
+
+## 系统要求
+
+- NVIDIA Jetson (ARM64/aarch64)
+- Python 3.10
+- CUDA 12.6
+- PyTorch 2.x (JetPack 版本)
+
+## 对应版本
+
+此 .so 文件包对应以下 wheel 版本:
+- mamba_ssm: {version_info['mamba_ssm']}
+- causal_conv1d: {version_info['causal_conv1d']}
+
+---
+
+Generated by jetson-mamba-ssm project
+"""
+
+                (temp_path / "README.md").write_text(readme_content)
+
+                # 创建压缩包
+                with tarfile.open(so_archive_path, "w:gz") as tar:
+                    tar.add(temp_path, arcname="so_files")
+
+            archive_size = so_archive_path.stat().st_size / (1024**2)
+            compression_ratio = archive_size / (total_size / (1024**2)) * 100
+
+            print_success(f"✓ {so_archive_name} ({archive_size:.1f} MB, 压缩率 {compression_ratio:.1f}%)")
+
+            files_to_copy.append({
+                'src': so_archive_path,
+                'dst_name': so_archive_name,
+                'type': 'archive',
+                'description': f'CUDA extension .so files ({archive_size:.1f} MB)'
+            })
+        else:
+            print_warning("未找到 .so 文件")
+
+    print()
+
+    # 复制文件到 release 目录
+    print_info("复制文件到 release 目录...")
+    total_size = 0
+
+    release_summary = {
+        'version': version_info,
+        'date': version_info['date'],
+        'files': []
+    }
+
+    for file_info in files_to_copy:
+        dst = release_dir / file_info['dst_name']
+        try:
+            shutil.copy2(file_info['src'], dst)
+            size_mb = file_info['src'].stat().st_size / (1024**2)
+            total_size += file_info['src'].stat().st_size
+            print_success(f"  {file_info['dst_name']} ({size_mb:.1f} MB)")
+
+            release_summary['files'].append({
+                'name': file_info['dst_name'],
+                'size_mb': size_mb,
+                'type': file_info['type'],
+                'description': file_info['description']
+            })
+        except Exception as e:
+            print_error(f"  复制失败: {e}")
+
+    # 创建 RELEASE_NOTES
+    release_notes_path = release_dir / "RELEASE_NOTES.md"
+    create_release_notes(release_notes_path, release_summary)
+
+    print(f"\n{CYAN}{'=' * 60}{RESET}")
+    print_success("Release 文件准备完成！")
+    print_info(f"目录: {release_dir}")
+    print_info(f"总大小: {total_size / (1024**2):.1f} MB")
+    print(f"{CYAN}{'=' * 60}{RESET}\n")
+
+    # 显示文件列表
+    print_info("文件清单:")
+    for i, f in enumerate(release_summary['files'], 1):
+        print(f"  {i}. {f['name']}")
+        print(f"     大小: {f['size_mb']:.1f} MB")
+        print(f"     类型: {f['type']}")
+        print(f"     说明: {f['description']}")
+        print()
+
+    return release_dir
+
+
+def create_release_notes(notes_path, summary):
+    """创建 RELEASE_NOTES.md"""
+    version = summary['version']
+
+    # Determine so archive name safely
+    so_archive_name = ''
+    if len(summary['files']) > 0:
+        for f in summary['files']:
+            if f.get('type') == 'archive' and '.tar.gz' in f['name']:
+                so_archive_name = f['name']
+                break
+
+    content = f"""# Jetson-Mamba-SSM Release Notes
+
+## Version: {version['mamba_ssm']}
+
+**发布日期**: {summary['date']}
+
+---
+
+## 下载与安装
+
+### 快速安装
+
+```bash
+# 1. 安装 wheel 文件
+pip install mamba_ssm-{version['mamba_ssm']}-cp310-cp310-linux_aarch64.whl
+pip install causal_conv1d_{version['causal_conv1d']}-cp310-cp310-linux_aarch64.whl
+
+# 2. 验证安装
+python -c "from mamba_ssm.ops.selective_scan_interface import ONNX_EXPORT_MODE; print('✓ 安装成功')"
+```
+
+### 备用方案：安装 .so 文件
+
+如果 wheel 安装遇到问题，可以手动安装 .so 文件：
+
+```bash
+# 下载 {so_archive_name}
+# 解压
+tar -xzf *.tar.gz
+cd so_files
+sudo cp *.so /usr/local/lib/python3.10/site-packages/
+```
+
+---
+
+## 包含的文件
+
+"""
+
+    for f in summary['files']:
+        content += f"- **{f['name']}** ({f['size_mb']:.1f} MB)\n"
+        content += f"  - {f['description']}\n"
+
+    content += f"""
+---
+
+## 系统要求
+
+| 组件 | 版本 |
+|------|------|
+| **平台** | NVIDIA Jetson (Orin/Xavier/Nano) |
+| **架构** | ARM64 (aarch64) |
+| **Python** | 3.10 |
+| **JetPack** | R36 (release), REVISION: 4.7 |
+| **CUDA** | 12.6 |
+| **TensorRT** | 10.7.0 |
+
+---
+
+## 功能特性
+
+- ✅ **libc10.so 依赖修复**: 解决 Jetson 平台 libc10.so 缺失问题
+- ✅ **ONNX 导出支持**: Mamba 模块可导出为 ONNX 格式
+- ✅ **TensorRT 10.x 兼容**: 支持最新 TensorRT 10.x API
+- ✅ **多精度推理**: 支持 FP32/FP16/INT8 精度
+
+---
+
+## 更新内容
+
+### mamba_ssm-{version['mamba_ssm']}
+
+**libc10.so 依赖修复**
+- 使用 `causal_conv1d_fn` 替代 `causal_conv1d_cuda.causal_conv1d_fwd`
+- 兼容 layer 自动注册
+
+**ONNX 导出支持**
+- 添加 `ONNX_EXPORT_MODE` 标志
+- CPU fallback 用于 ONNX 图构建
+- `_selective_scan_onnx_export()` 简化实现
+
+**torch.exp() 替换**
+- ONNX 兼容的指数运算
+
+### causal_conv1d-{version['causal_conv1d']}
+
+**libc10.so 兼容层**
+- 创建 `causal_conv1d_cuda` 模块
+- 自动加载，无需外部脚本
+
+---
+
+## 使用指南
+
+### 导出 TensorRT 引擎
+
+```bash
+# 导出 TensorRT (FP16)
+yolo export model=best.pt format=engine imgsz=640 device=0
+
+# 导出 TensorRT (FP32)
+yolo export model=best.pt format=engine imgsz=640 device=0 half=False
+```
+
+### 推理
+
+```bash
+# TensorRT 推理
+yolo detect predict model=best.engine source=image.jpg
+```
+
+---
+
+## 性能数据 (Jetson Orin)
+
+| 格式 | 精度 | 文件大小 | 推理速度 (640x640) |
+|------|------|----------|---------------------|
+| TensorRT (.engine) | FP16 | 32.7 MB | 40ms |
+| TensorRT (.engine) | FP32 | 32.7 MB | 80ms |
+
+---
+
+## 文档
+
+- [README](https://github.com/snowolf-zlex/Jetson-Mamba-SSM/jetson-mamba-ssm)
+- [安装指南](https://github.com/snowolf-zlex/Jetson-Mamba-SSM/jetson-mamba-ssm/blob/main/docs/YOLOV10_TENSORRT_EXPORT_GUIDE.md)
+- [编译指南](https://github.com/snowolf-zlex/Jetson-Mamba-SSM/jetson-mamba-ssm/blob/main/docs/JETSON_MAMBA_SSM_BUILD_GUIDE.md)
+
+---
+
+## 兼容性
+
+| 设备 | 兼容性 | 说明 |
+|------|--------|------|
+| Jetson Orin | ✅ 完全兼容 | 主要测试平台 |
+| Jetson Xavier | ✅ 兼容 | 可能需要重新编译 |
+| Jetson Nano | ⚠️ 部分兼容 | 可能需要重新编译 |
+
+---
+
+## 许可证
+
+MIT License
+
+---
+
+## 致谢
+
+- [Mamba-SSM](https://github.com/state-spaces/mamba) - Tri Dao, Albert Gu
+- [causal-conv1d](https://github.com/Dao-AILab/causal-conv1d) - Tri Dao
+- [Ultralytics YOLOv10](https://github.com/THU-MIG/yolov10) - YOLOv10
+
+---
+
+**Jetson-Mamba-SSM 项目**
+https://github.com/snowolf-zlex/Jetson-Mamba-SSM/jetson-mamba-ssm
+"""
+
+    notes_path.write_text(content)
+    print_success(f"✓ RELEASE_NOTES.md 已创建")
+
+
+def create_install_script(release_dir, version_info):
+    """创建一键安装脚本"""
+    script_path = release_dir / "install.sh"
+    script_content = f'''#!/bin/bash
+# Jetson-Mamba-SSM 一键安装脚本
+# 版本: {version_info['mamba_ssm']}
+
+set -e
+
+echo "=============================================="
+echo " Jetson-Mamba-SSM 安装脚本"
+echo " 版本: {version_info['mamba_ssm']}"
+echo "=============================================="
+echo ""
+
+# 检测系统
+echo "[1/3] 检测系统..."
+if [[ $(uname -m) != "aarch64" ]]; then
+    echo "错误: 此包仅支持 ARM64 架构"
+    exit 1
+fi
+
+PYTHON_VERSION=$(python3 --version 2>&1 | grep -oP '\\d+\\.\\d+')
+if [[ "$PYTHON_VERSION" != "3.10" ]]; then
+    echo "警告: Python 版本不是 3.10，可能不兼容"
+fi
+
+echo "✓ 系统检测通过"
+echo ""
+
+# 安装 wheel
+echo "[2/3] 安装 wheel 文件..."
+SCRIPT_DIR="$( cd "$( dirname "${{BASH_SOURCE[0]}}" )" && pwd )"
+
+pip install "$SCRIPT_DIR/mamba_ssm-{version_info['mamba_ssm']}-cp310-cp310-linux_aarch64.whl"
+pip install "$SCRIPT_DIR/causal_conv1d-{version_info['causal_conv1d']}-cp310-cp310-linux_aarch64.whl"
+
+echo "✓ Wheel 安装完成"
+echo ""
+
+# 验证安装
+echo "[3/3] 验证安装..."
+python3 -c "from mamba_ssm.ops.selective_scan_interface import ONNX_EXPORT_MODE; print('✓ mamba-ssm 安装成功')"
+
+echo ""
+echo "=============================================="
+echo " 安装完成！"
+echo "=============================================="
+echo ""
+echo "快速开始:"
+echo "  yolo export model=best.pt format=engine imgsz=640"
+echo ""
+'''
+
+    script_path.write_text(script_content)
+    script_path.chmod(0o755)
+    print_success(f"✓ install.sh 已创建")
+
+
+def main():
+    """主函数"""
+    print("=" * 60)
+    print("Jetson-Mamba-SSM Release 准备工具")
+    print("=" * 60)
+
+    project_root = Path(__file__).parent.parent.parent
+
+    # 准备 Release 文件
+    release_dir = prepare_release_files(project_root)
+
+    if release_dir:
+        version_info = get_version_info()
+
+        # 创建安装脚本
+        create_install_script(release_dir, version_info)
+
+        print(f"\n{CYAN}{'=' * 60}{RESET}")
+        print_success("准备完成！")
+        print_info(f"Release 目录: {release_dir}")
+        print(f"版本: {version_info['mamba_ssm']}")
+        print_info(f"日期: {version_info['date']}")
+        print(f"{CYAN}{'=' * 60}{RESET}\n")
+
+        print_info("下一步:")
+        print("  1. 查看文件:")
+        print(f"     ls -la {release_dir}")
+        print()
+        print("  2. 创建 GitHub Release:")
+        print(f"     python scripts/utils/release.py --tag {version_info['mamba_ssm'].replace('+', '_')}")
+        print()
+        print("  3. 或手动上传到 GitHub Release")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

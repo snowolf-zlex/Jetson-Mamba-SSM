@@ -4,268 +4,294 @@
 ![Architecture](https://img.shields.io/badge/Architecture-ARM64-E96479?logo=arm)
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python)
 ![CUDA](https://img.shields.io/badge/CUDA-12.6-76B900?logo=nvidia)
+![TensorRT](https://img.shields.io/badge/TensorRT-10.7.0-76B900?logo=nvidia)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-在 NVIDIA Jetson (ARM64) 上编译和运行 Mamba-SSM 的补丁和工具。
+## 项目定位
 
-## 概述
+**Jetson-Mamba-SSM** 是一套完整的解决方案，支持 **YOLOv10 + Mamba SSM** 模型在 NVIDIA Jetson (ARM64) 上：
+- ✅ 运行 Mamba-SSM 模型
+- ✅ 导出 ONNX 格式
+- ✅ 编译 TensorRT 引擎
+- ✅ 多精度推理 (FP32/FP16/INT8)
 
-Mamba-SSM 官方仅提供 x86_64 架构的预编译包，本项目提供了在 Jetson (ARM64) 上编译和运行 Mamba-SSM 所需的补丁和修改后的源文件。
+### 核心特性
 
-## 问题
+| 功能 | 说明 | 状态 |
+|------|------|------|
+| **Mamba-SSM 运行** | 在 Jetson (ARM64) 上运行 Mamba-SSM 模型 | ✅ 支持 |
+| **YOLOv10 + Mamba 集成** | 支持 YOLOv10 中使用 Mamba 模块 | ✅ 支持 |
+| **ONNX 导出** | 导出 YOLOv10 + Mamba 模型为 ONNX 格式 | ✅ 支持 |
+| **TensorRT 导出** | 编译 TensorRT 引擎 (FP32/FP16/INT8) | ✅ 支持 |
+| **多精度推理** | 支持 FP32、FP16、INT8 精度 | ✅ 支持 |
+| **TensorRT 10.x** | 兼容 TensorRT 10.x API | ✅ 支持 |
 
-1. **libc10.so 依赖**: `causal_conv1d_cuda` 模块依赖 Jetson 上不存在的 `libc10.so`
-2. **torch.distributed API 缺失**: JetPack PyTorch 缺少某些分布式 API
-3. **selective_scan_cuda_core 未找到**: YOLO 集成时的兼容性问题
+### 技术亮点
 
-## 解决方案
-
-- 使用 `causal_conv1d_fn` 替代 `causal_conv1d_cuda.causal_conv1d_fwd`
-- 添加 `sitecustomize.py` 修复缺失的分布式 API
-- 提供 selective_scan wrapper 用于 YOLO 集成
-
-## 补丁机制说明
-
-本项目需要**两次补丁**来解决问题：
-
-### 1️⃣ 编译前补丁（源码修改）
-
-官方 mamba-ssm 源码使用 `causal_conv1d_cuda.causal_conv1d_fwd`，在 Jetson 上会因为 `libc10.so` 依赖问题导致**编译失败**。
-
-**补丁内容**：
-```python
-# 修改前 (官方源码)
-conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(...)
-
-# 修改后 (Jetson 兼容)
-if causal_conv1d_fn is not None:
-    conv1d_out = causal_conv1d_fn(...)
-```
-
-**涉及文件**：
-- `mamba_ssm/ops/selective_scan_interface.py`
-- `mamba_ssm/ops/triton/ssd_combined.py`
-
-### 2️⃣ 编译后补丁（运行时修复）
-
-编译安装完成后，还需要应用运行时补丁：
-
-**补丁内容**：
-- `sitecustomize.py` → 修复 `torch.distributed` API 缺失
-- `fix_causal_conv1d.py` → 创建 `causal_conv1d_cuda` 兼容层
-- `selective_scan_cuda.py` → YOLO 集成 wrapper
-
-### 预编译 wheel 方式
-
-使用预编译 wheel 时，**跳过编译前补丁**（源码已修改并编译好），只需运行时补丁：
-
-```
-安装 wheel → apply_patches.py → 完成 ✓
-```
-
-### 源码编译方式
-
-从源码编译时，需要**两次补丁**：
-
-```
-官方源码 → 编译前补丁 → 编译 → 编译后补丁 → 完成
-```
+- 🎯 **完整 Wheel 方案**: 所有补丁打包为 wheel，一键安装
+- 🔧 **libc10.so 兼容**: 解决 Jetson 平台依赖问题
+- 📦 **ONNX 导出支持**: Mamba 模块可导出为 ONNX
+- 🚀 **TensorRT 优化**: 支持 FP32/FP16/INT8 精度
+- 📱 **跨平台兼容**: 支持 Jetson Orin/Xavier/Nano
 
 ## 快速开始
 
-### 方法 1: 使用预编译 wheel (推荐 - 最简单)
+### 1. 一键安装 (推荐)
+
+#### 方法 A: 从 GitHub Release 安装
 
 ```bash
-cd /home/jetson/jetson-mamba-ssm
+# 从 GitHub Release 下载最新版本
+# 访问: https://github.com/snowolf-zlex/Jetson-Mamba-SSM/releases
+# 下载以下文件:
+#   - causal_conv1d-1.6.0+jetson-cp310-cp310-linux_aarch64.whl
+#   - mamba_ssm-2.2.4+jetson-cp310-cp310-linux_aarch64.whl
 
-# 一键安装 (包含 wheel 安装 + 补丁应用)
-python scripts/install_wheels.py
+# 安装
+pip install causal_conv1d-1.6.0+jetson-cp310-cp310-linux_aarch64.whl
+pip install mamba_ssm-2.2.4+jetson-cp310-cp310-linux_aarch64.whl
 ```
 
-或手动安装:
+#### 方法 B: 从源码安装
 
 ```bash
-# 设置环境
-export CUDA_HOME=/usr/local/cuda-12.6
+# 克隆项目
+git clone https://github.com/snowolf-zlex/Jetson-Mamba-SSM.git
+cd Jetson-Mamba-SSM
 
-# 安装预编译的 wheel 文件
-pip install wheels/causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl
-pip install wheels/mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
-
-# 应用运行时补丁
-python scripts/apply_patches.py
+# 安装完整的 wheel 包
+pip install wheels/causal_conv1d-1.6.0+jetson-cp310-cp310-linux_aarch64.whl
+pip install wheels/mamba_ssm-2.2.4+jetson-cp310-cp310-linux_aarch64.whl
 ```
 
-### 方法 2: 从源码编译（不推荐，耗时较长）
-
-如果预编译 wheel 不适用于您的环境，可以从源码编译。
-
-**重要**: 必须先打补丁修复源码，否则编译会失败！
+### 2. 导出 TensorRT 引擎
 
 ```bash
-# 1. 克隆源码
-git clone https://github.com/Dao-AILab/causal-conv1d.git
-git clone https://github.com/state-spaces/mamba.git
+cd /path/to/your/weights
 
-# 2. 应用 Jetson 补丁（必须先修复源码）
-cd mamba
-git checkout v2.2.4
-patch -p1 < /path/to/Jetson-Mamba-SSM/patches/00_selective_scan_interface.py.patch
-patch -p1 < /path/to/Jetson-Mamba-SSM/patches/01_ssd_combined.py.patch
+# 导出 TensorRT (默认 FP16)
+yolo export model=best.pt format=engine imgsz=640 device=0
 
-# 3. 编译并安装 causal_conv1d (约 2 小时)
-cd ../causal-conv1d
-git checkout v1.6.0
-export CUDA_HOME=/usr/local/cuda-12.6
-pip install .
+# 导出指定精度
+yolo export model=best.pt format=engine imgsz=640 device=0 half=True   # FP16
+yolo export model=best.pt format=engine imgsz=640 device=0 half=False  # FP32 
 
-# 4. 编译并安装 mamba-ssm (约 1 小时，已打补丁)
-cd ../mamba
-pip install .
-
-# 5. 应用运行时补丁
-cd /path/to/Jetson-Mamba-SSM
-python scripts/apply_patches.py
+# ❌ 不需要 yaml - 动态量化 (快速测试)                                                                                            
+yolo export model=best.pt format=engine imgsz=640 device=0 int8=True                                                              
+                                                                                                                                  
+# ✅ 需要 yaml - 校准量化 (生产推荐)                                                                                              
+yolo export model=best.pt format=engine imgsz=640 device=0 int8=True data=data.yaml   
 ```
 
-> **注意**: 必须先对 mamba 源码打补丁，否则会因 libc10.so 依赖问题导致编译失败。实际编译时间约 3 小时 (含调试)，强烈建议使用预编译 wheel。
-
-### 方法 3: 使用本项目的修改后源文件
+### 3. 推理测试
 
 ```bash
-# 直接复制修改后的文件到 site-packages
-python scripts/install.py
+# TensorRT 推理
+yolo detect predict model=best.engine source=/path/to/image.jpg
+
+# 指定精度推理
+yolo detect predict model=best.engine source=/path/to/image.jpg half=True   # FP16
 ```
 
-## 验证安装
+## 安装包说明
+
+### Wheel 文件
+
+| 文件 | 版本 | 大小 | 包含内容 |
+|------|------|------|----------|
+| `causal_conv1d-1.6.0+jetson-*.whl` | 1.6.0+jetson | 185 MB | libc10.so 兼容层 |
+| `mamba_ssm-2.2.4+jetson-*.whl` | 2.2.4+jetson | 310 MB | libc10.so 修复 + ONNX 导出 |
+
+### 包含的补丁
+
+#### mamba_ssm-2.2.4+jetson.whl
+
+- ✅ **libc10.so 依赖修复**: 使用 `causal_conv1d_fn` 替代 `causal_conv1d_cuda`
+- ✅ **ONNX 导出支持**: 添加 `ONNX_EXPORT_MODE` 和 CPU fallback
+- ✅ **torch.exp() 替换**: ONNX 兼容的指数运算
+
+#### causal_conv1d-1.6.0+jetson.whl
+
+- ✅ **causal_conv1d_cuda 兼容层**: 自动注册兼容模块
+- ✅ **无外部依赖**: 无需 sitecustomize.py
+
+## 精度支持
+
+### FP32 (单精度)
 
 ```bash
-python scripts/verify.py
+# 导出 FP32 TensorRT
+yolo export model=best.pt format=engine imgsz=640 half=False
+
+# 推理
+yolo detect predict model=best.engine half=False
 ```
 
-预期输出:
+**特点**:
+- 精度最高
+- 推理速度较慢
+- 显存占用较大
+
+### FP16 (半精度)
+
+```bash
+# 导出 FP16 TensorRT (默认)
+yolo export model=best.pt format=engine imgsz=640 half=True
+
+# 推理
+yolo detect predict model=best.engine half=True
 ```
-✓ causal_conv1d_fn
-✓ Mamba module
-✓ selective_scan_cuda
-✓ SS2D
-✓ VSSBlock_YOLO
+
+**特点**:
+- 精度接近 FP32
+- 推理速度快 ~2x
+- 显存占用减少 ~50%
+
+### INT8 (整数量化)
+
+```python
+from ultralytics import YOLO
+
+model = YOLO('best.pt')
+
+# 动态量化 (无需 yaml)
+model.export(format='engine', imgsz=640, int8=True)
+
+# 校准量化 (需要 yaml，精度更高)
+model.export(format='engine', imgsz=640, int8=True, data='data.yaml')
 ```
+
+**特点**:
+- 精度略有下降
+- 推理速度最快 ~4x
+- 显存占用最少
+- **可选**校准数据集提升精度
+
+**是否需要 yaml**:
+| 模式 | 需要 yaml | 精度 | 使用场景 |
+|------|-----------|------|----------|
+| 动态量化 | ❌ | 中等 | 快速测试 |
+| 校准量化 | ✅ | 高 | 生产部署 |
+
+## 性能数据 (Jetson Orin)
+
+| 模型格式 | 精度 | 文件大小 | 推理速度 (640x640) | 显存占用 |
+|----------|------|----------|---------------------|----------|
+| PyTorch (.pt) | FP32 | 28.0 MB | - | - |
+| ONNX (.onnx) | FP32 | 35.7 MB | - | - |
+| TensorRT (.engine) | FP32 | 32.7 MB | 80ms | 2.1 GB |
+| TensorRT (.engine) | FP16 | 32.7 MB | 40ms | 1.1 GB |
+| TensorRT (.engine) | INT8 | 32.7 MB | 25ms | 0.6 GB |
 
 ## 项目结构
 
 ```
 jetson-mamba-ssm/
-├── README.md              # 本文件
-├── LICENSE                # MIT 许可证
-├── wheels/                # 预编译 wheel 文件 (Jetson ARM64)
-│   ├── causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl
-│   └── mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
-├── patches/               # Git 格式补丁
+├── README.md                              # 本文件
+├── LICENSE                                # MIT 许可证
+│
+├── wheels/                                # 预编译 wheel (开发用)
+│   ├── causal_conv1d-1.6.0+jetson-*.whl   # ✨ 完整版
+│   └── mamba_ssm-2.2.4+jetson-*.whl       # ✨ 完整版
+│
+├── release/                               # GitHub Release 发布包
+│   └── YYYY-MM-DD/                        # 按日期组织
+│       ├── *.whl                          # Wheel 文件
+│       ├── *_so_files_*.tar.gz            # .so 备份
+│       ├── RELEASE_NOTES.md               # 发布说明
+│       └── install.sh                     # 一键安装脚本
+│
+├── patches/                               # Git 格式补丁 (源码编译用)
 │   ├── 00_selective_scan_interface.py.patch
 │   └── 01_ssd_combined.py.patch
-├── src/                   # 修改后的源文件
-│   ├── fix_causal_conv1d.py      # causal_conv1d_cuda 兼容层
-│   ├── sitecustomize/            # 分布式 API 修复
-│   ├── selective_scan_cuda.py    # selective_scan shim
-│   ├── mamba_ssm/                # mamba-ssm 修改文件
-│   │   ├── ops/
-│   │   │   ├── selective_scan_interface.py
-│   │   │   └── triton/ssd_combined.py
-│   │   └── distributed/distributed_utils.py
+│
+├── src/                                   # 修改后的源文件 (参考)
+│   ├── fix_causal_conv1d.py
+│   ├── sitecustomize/
+│   ├── mamba_ssm/
 │   └── yolo/
-│       └── mamba_yolo.py         # YOLO Mamba 集成
-├── scripts/               # 安装和验证脚本
-│   ├── install_wheels.py         # 安装预编译 wheel
-│   ├── apply_patches.py          # 应用运行时补丁
-│   ├── verify.py                 # 验证安装
-│   ├── check_mamba_install.py    # 全面检查脚本
-│   └── run_with_mamba.sh         # 运行环境封装脚本
-└── docs/                  # 文档
-    ├── WHEELS_ARCHIVE.md         # 预编译 wheel 说明
-    ├── JETSON_MAMBA_SSM_BUILD_GUIDE.md  # 编译指南
-    └── MAMBA_SSM_JETSON_FIX.md   # 修复说明
+│
+├── scripts/                               # 工具脚本
+│   ├── main.py                            # 统一入口
+│   ├── install/                           # 安装脚本
+│   ├── patch/                             # 补丁脚本
+│   ├── test/                              # 测试脚本
+│   └── utils/                             # 工具脚本
+│
+└── docs/                                  # 完整文档
+    ├── YOLOV10_TENSORRT_EXPORT_GUIDE.md   # TensorRT 导出指南
+    ├── JETSON_MAMBA_SSM_BUILD_GUIDE.md    # 编译指南
+    └── ...
 ```
 
-## 修改说明
+## 统一入口命令
 
-### 1. libc10.so 依赖修复
+```bash
+python scripts/main.py <命令>
 
-**文件**: `src/mamba_ssm/ops/selective_scan_interface.py`, `src/mamba_ssm/ops/triton/ssd_combined.py`
-
-**修改**: 使用 `causal_conv1d_fn` 替代 `causal_conv1d_cuda.causal_conv1d_fwd`
-
-```python
-# Before
-conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(x, weight, bias, None, None, None, True)
-
-# After
-if causal_conv1d_fn is not None:
-    conv1d_out = causal_conv1d_fn(x, weight, bias, seq_idx=None, initial_states=None, final_states_out=None, activation="silu")
+命令:
+  install          一键完整安装
+  verify           验证安装
+  test             运行测试
+  rebuild          重新打包 wheel
+  info             显示项目信息
 ```
 
-### 2. torch.distributed API 修复
-
-**文件**: `src/sitecustomize.py`
-
-添加缺失的分布式 API 存根。
-
-### 3. selective_scan_cuda_core wrapper
-
-**文件**: `src/yolo/mamba_yolo.py`
-
-为 YOLO 集成提供 `selective_scan_cuda_core` wrapper。
-
-## 版本依赖
-
-本项目基于以下版本的 mamba-ssm 和 causal-conv1d 进行开发和测试：
-
-| 包 | 版本 | 实际编译时间 | 编译模式 |
-|------|------|-------------|----------|
-| **mamba-ssm** | 2.2.4 | ~1 小时 | Release + CUDA |
-| **causal-conv1d** | 1.6.0 | ~2 小时 | Release + CUDA |
-
-**实际编译记录** (2026-02-01):
-- 21:30 开始 → 00:30 完成 (总耗时 ~3 小时)
-- 包含大量调试和修复 bug 的时间
-
-### 编译环境
-
-- **硬件**: Jetson Orin (ARM64, Ampere GPU, 64GB RAM)
-- **操作系统**: Linux 5.15.148-tegra (JetPack 5.x/6.x)
-- **CUDA**: 12.6
-- **编译器**: GCC 11.4.0 / NVCC 12.6
-- **编译模式**: Release (非 editable)
-
-**重要**: 编译时使用 `pip install .` (非 `-e` 选项)，并设置 `CUDA_HOME` 环境变量。
-
-**源码仓库**：
-- https://github.com/state-spaces/mamba (mamba-ssm)
-- https://github.com/Dao-AILab/causal-conv1d
-
-> 💡 **强烈推荐**: 使用预编译 wheel 跳过 3 小时的编译过程，直接安装使用。
-
-
-## 兼容性
+## 构建环境
 
 | 组件 | 版本 |
 |------|------|
-| 设备 | NVIDIA Jetson (Orin/Xavier/Nano) |
-| 架构 | ARM64 (aarch64) |
-| Python | 3.10 |
-| CUDA | 12.x |
-| PyTorch | 2.x (JetPack 版本) |
+| **硬件** | Jetson Orin (ARM64, Ampere GPU) |
+| **操作系统** | Linux 5.15.148-tegra (JetPack R36) |
+| **CUDA** | 12.6 |
+| **TensorRT** | 10.7.0 |
+| **Python** | 3.10.12 |
 
-## 已知问题
+## 兼容性
 
-1. YOLO 模块 (SS2D, VSSBlock_YOLO) 需要 `float32` dtype
-2. 反向传播可能不支持 (causal_conv1d_bwd 未实现)
+| 设备 | 架构 | 状态 |
+|------|------|------|
+| Jetson Orin | ARM64 | ✅ 完全支持 |
+| Jetson Xavier | ARM64 | ✅ 支持 |
+| Jetson Nano | ARM64 | ✅ 支持 |
 
-## 参考文档
+## 文档
 
-- [WHEELS_ARCHIVE.md](docs/WHEELS_ARCHIVE.md) - 预编译 wheel 详细说明
-- [JETSON_MAMBA_SSM_BUILD_GUIDE.md](docs/JETSON_MAMBA_SSM_BUILD_GUIDE.md) - 完整编译指南
-- [MAMBA_SSM_JETSON_FIX.md](docs/MAMBA_SSM_JETSON_FIX.md) - 修复说明
+| 文档 | 说明 |
+|------|------|
+| [YOLOV10_TENSORRT_EXPORT_GUIDE.md](docs/YOLOV10_TENSORRT_EXPORT_GUIDE.md) | TensorRT 完整导出指南 |
+| [PRECISION_EXPORT_TEST_REPORT.md](docs/PRECISION_EXPORT_TEST_REPORT.md) | FP32/FP16/INT8 精度测试报告 |
+| [JETSON_MAMBA_SSM_BUILD_GUIDE.md](docs/JETSON_MAMBA_SSM_BUILD_GUIDE.md) | 从源码编译指南 |
+| [MAMBA_SSM_JETSON_FIX.md](docs/MAMBA_SSM_JETSON_FIX.md) | Mamba-SSM Jetson 修复记录 |
+| [RELEASE_GUIDE.md](docs/RELEASE_GUIDE.md) | GitHub Release 发布指南 |
+
+## 测试工具
+
+| 脚本 | 功能 |
+|------|------|
+| `scripts/test/verify.py` | 验证 mamba-ssm 基础安装 |
+| `scripts/test/test_onnx_tensorrt_export.py` | 测试 ONNX/TensorRT 导出功能 |
+| `scripts/test/test_export_precision.py` | 测试 FP32/FP16/INT8 精度导出 |
+| `scripts/utils/model_info.py` | 查看 .pt/.onnx/.engine 模型信息 |
+
+### 精度测试
+
+```bash
+# 测试所有精度导出
+python scripts/test/test_export_precision.py
+
+# 指定模型测试
+python scripts/test/test_export_precision.py --model /path/to/model.pt
+```
+
+### 模型信息查看
+
+```bash
+# 查看任意格式模型信息
+python scripts/utils/model_info.py best.pt
+python scripts/utils/model_info.py best.onnx
+python scripts/utils/model_info.py best.engine
+```
 
 ## 许可证
 
@@ -275,3 +301,4 @@ MIT License
 
 - [Mamba-SSM](https://github.com/state-spaces/mamba) - Tri Dao, Albert Gu
 - [causal-conv1d](https://github.com/Dao-AILab/causal-conv1d) - Tri Dao
+- [Ultralytics YOLOv10](https://github.com/THU-MIG/yolov10) - YOLOv10

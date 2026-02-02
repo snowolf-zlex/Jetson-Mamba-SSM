@@ -55,8 +55,9 @@ try:
 
     # Use absolute path - don't rely on sys.path
     # Try multiple possible project directories
+    # NOTE: Update these paths to match your actual installation location
     project_dirs = [
-        '/home/jetson/jetson-mamba-ssm',  # Default installation path
+        './jetson-mamba-ssm',              # Default: cloned to current directory
         '/home/jetson/pythonProject',      # Legacy path
     ]
 

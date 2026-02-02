@@ -99,7 +99,7 @@ pip install mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
 selective_scan_cuda 通常作为 mamba-ssm 的依赖自动编译。编译后会生成 `.so` 文件:
 
 ```
-/home/jetson/.local/lib/python3.10/site-packages/selective_scan_cuda.cpython-310-aarch64-linux-gnu.so
+~/.local/lib/python3.10/site-packages/selective_scan_cuda.cpython-310-aarch64-linux-gnu.so
 ```
 
 ---
@@ -145,7 +145,7 @@ pip install .
 AttributeError: module 'torch.distributed' has no attribute '_all_gather_base'
 ```
 
-**解决方案**: 创建 `/home/jetson/.local/lib/python3.10/site-packages/sitecustomize.py`
+**解决方案**: 创建 `~/.local/lib/python3.10/site-packages/sitecustomize.py`
 
 ```python
 # sitecustomize to patch missing torch.distributed APIs
@@ -231,7 +231,7 @@ ImportError: libc10.so: cannot open shared object file: No such file or director
 
 #### 修改文件 1: selective_scan_interface.py
 
-**位置**: `/home/jetson/.local/lib/python3.10/site-packages/mamba_ssm/ops/selective_scan_interface.py`
+**位置**: `~/.local/lib/python3.10/site-packages/mamba_ssm/ops/selective_scan_interface.py`
 
 **修改 1 (line 309)**: 修改 assert 语句
 ```python
@@ -266,7 +266,7 @@ elif causal_conv1d_cuda is not None:
 
 #### 修改文件 2: ssd_combined.py
 
-**位置**: `/home/jetson/.local/lib/python3.10/site-packages/mamba_ssm/ops/triton/ssd_combined.py`
+**位置**: `~/.local/lib/python3.10/site-packages/mamba_ssm/ops/triton/ssd_combined.py`
 
 **修改 1 (line 779-782)**: forward pass
 ```python
@@ -301,10 +301,10 @@ xBC_conv = rearrange(conv_out, "b d s -> b s d")
 ```python
 import sys
 sys.path.insert(0, '.')
-sys.path.insert(0, './yolov10_main')
+sys.path.insert(0, './path/to/yolov10')
 
 import torch
-import yolov10_main.ultralytics.nn.AddModules.Structure.mamba_yolo as mamba_yolo
+# import your_ultralytics.nn.modules.mamba_yolo as mamba_yolo
 
 # 1. 测试 causal_conv1d
 from causal_conv1d import causal_conv1d_fn
@@ -346,27 +346,31 @@ print("✓ VSSBlock_YOLO: {} -> {}".format(x.shape, y.shape))
 
 ## 使用预编译的 wheel 文件
 
-项目已将编译好的 wheel 文件存档在 `/home/jetson/pythonProject/` 目录下:
+项目已将编译好的 wheel 文件存档在 `wheels/` 目录下:
 
 ### 文件列表
 
 ```
-/home/jetson/pythonProject/
-├── causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl  (约 XX MB)
-└── mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl     (约 324 MB)
+wheels/
+├── causal_conv1d-1.6.0+jetson-cp310-cp310-linux_aarch64.whl  (约 185 MB)
+└── mamba_ssm-2.2.4+jetson-cp310-cp310-linux_aarch64.whl     (约 310 MB)
 ```
 
 ### 安装方法
 
 ```bash
+# 克隆项目
+git clone https://github.com/snowolf-zlex/Jetson-Mamba-SSM.git
+cd Jetson-Mamba-SSM
+
 # 设置 CUDA_HOME
-export CUDA_HOME=/usr/local/cuda-12.6
+export CUDA_HOME=/usr/local/cuda
 
 # 安装 causal_conv1d
-pip install /home/jetson/pythonProject/causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl
+pip install wheels/causal_conv1d-1.6.0+jetson-cp310-cp310-linux_aarch64.whl
 
 # 安装 mamba-ssm
-pip install /home/jetson/pythonProject/mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
+pip install wheels/mamba_ssm-2.2.4+jetson-cp310-cp310-linux_aarch64.whl
 ```
 
 ### 兼容性说明

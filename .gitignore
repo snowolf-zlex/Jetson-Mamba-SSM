@@ -38,8 +38,13 @@ env/
 Thumbs.db
 
 # Project specific
-*.whl
+#*.whl
 *.bak
+
+# Release and backup directories (use GitHub Releases instead)
+release/
+backup/
+*.tar.gz
 
 # Jupyter
 .ipynb_checkpoints/
