@@ -36,6 +36,25 @@
 
 ## 快速开始
 
+### 前置依赖
+
+在安装 mamba-ssm 之前，请确保已安装以下依赖：
+
+```bash
+# 基础依赖
+pip install torch einops ninja packaging transformers
+
+# triton (mamba-ssm 核心 GPU 算子库)
+# 源码要求: triton==2.1.0 或 2.2.0
+# 实测兼容: triton>=2.1.0 (包括 3.x)
+pip install triton
+```
+
+**triton 版本说明**:
+- mamba-ssm 源码标注要求 `triton==2.1.0` 或 `2.2.0`
+- 实际上 `triton>=2.1.0` 均可正常工作
+- Jetson Orin 实测: `triton 3.5.1` ✅ 兼容
+
 ### 1. 一键安装 (推荐)
 
 #### 方法 A: 从 GitHub Release 安装

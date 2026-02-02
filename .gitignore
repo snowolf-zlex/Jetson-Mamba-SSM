@@ -43,7 +43,6 @@ Thumbs.db
 
 # Release and backup directories (use GitHub Releases instead)
 release/
-backup/
 *.tar.gz
 
 # Jupyter

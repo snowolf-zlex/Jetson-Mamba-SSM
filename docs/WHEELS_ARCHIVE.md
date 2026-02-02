@@ -32,7 +32,17 @@
 **重要**:
 - 使用 `pip install .` (非 editable 模式)
 - 设置 `CUDA_HOME=/usr/local/cuda-12.6`
-- 编译前安装依赖: `pip install wheel packaging ninja`
+- 编译前安装依赖: `pip install wheel packaging ninja triton`
+
+**前置依赖**:
+```bash
+# mamba-ssm 核心依赖
+pip install einops ninja packaging transformers
+
+# triton - GPU 算子库 (必需)
+# 版本要求: triton>=2.1.0 (源码标注 2.1.0 或 2.2.0)
+pip install triton
+```
 
 ### 编译时间参考
 | 模块 | 版本 | 编译时间 | 说明 |
@@ -56,8 +66,14 @@
 |------|------|----------|
 | **mamba-ssm** | 2.2.4 | [state-spaces/mamba](https://github.com/state-spaces/mamba) |
 | **causal-conv1d** | 1.6.0 | [Dao-AILab/causal-conv1d](https://github.com/Dao-AILab/causal-conv1d) |
+| **triton** | >=2.1.0 | [openai/triton](https://github.com/openai/triton) |
 
 这些 wheel 文件是从上述版本的源码在 Jetson Orin (ARM64) 上编译而来。
+
+**triton 版本说明**:
+- mamba-ssm 源码标注要求 `triton==2.1.0` 或 `2.2.0`
+- 实际上 `triton>=2.1.0` 均可正常工作
+- Jetson Orin 实测: `triton 3.5.1` ✅ 兼容
 
 ---
 
@@ -74,6 +90,16 @@
 
 ## 快速安装
 
+### 前置依赖
+
+```bash
+# 基础依赖
+pip install einops ninja packaging transformers
+
+# triton - mamba-ssm 核心 GPU 算子库
+pip install triton
+```
+
 ### 方法 1: 使用安装脚本 (推荐)
 
 ```bash
@@ -87,14 +113,17 @@ python scripts/install_wheels.py
 # 1. 设置环境
 export CUDA_HOME=/usr/local/cuda-12.6  # 根据实际 CUDA 版本调整
 
-# 2. 安装 wheel 文件
+# 2. 安装前置依赖
+pip install einops ninja packaging transformers triton
+
+# 3. 安装 wheel 文件
 pip install wheels/causal_conv1d-1.6.0-cp310-cp310-linux_aarch64.whl
 pip install wheels/mamba_ssm-2.2.4-cp310-cp310-linux_aarch64.whl
 
-# 3. 应用补丁
+# 4. 应用补丁
 python scripts/apply_patches.py
 
-# 4. 验证安装
+# 5. 验证安装
 python scripts/verify.py
 ```
 
@@ -135,28 +164,30 @@ python scripts/verify.py
 ```bash
 # 1. 设置环境
 export CUDA_HOME=/usr/local/cuda-12.6
-pip install wheel packaging ninja
 
-# 2. 克隆源码
+# 2. 安装前置依赖
+pip install wheel packaging ninja einops transformers triton
+
+# 3. 克隆源码
 git clone https://github.com/Dao-AILab/causal-conv1d.git
 git clone https://github.com/state-spaces/mamba.git
 
-# 3. 应用 Jetson 补丁到 mamba 源码（必须先修复！）
+# 4. 应用 Jetson 补丁到 mamba 源码（必须先修复！）
 cd mamba
 git checkout v2.2.4
 patch -p1 < /path/to/Jetson-Mamba-SSM/patches/00_selective_scan_interface.py.patch
 patch -p1 < /path/to/Jetson-Mamba-SSM/patches/01_ssd_combined.py.patch
 
-# 4. 编译并安装 causal_conv1d (约 2 小时)
+# 5. 编译并安装 causal_conv1d (约 2 小时)
 cd ../causal-conv1d
 git checkout v1.6.0
 pip install .  # 注意: 不要使用 -e 选项
 
-# 5. 编译并安装 mamba-ssm (约 1 小时)
+# 6. 编译并安装 mamba-ssm (约 1 小时)
 cd ../mamba
 pip install .  # 注意: 不要使用 -e 选项
 
-# 6. 应用运行时补丁
+# 7. 应用运行时补丁
 cd /path/to/Jetson-Mamba-SSM
 python scripts/apply_patches.py
 ```

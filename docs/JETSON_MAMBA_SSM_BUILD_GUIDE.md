@@ -55,6 +55,46 @@ PyTorch: 2.5.0a0+872d972e41.nv24.8 (JetPack 版本)
 pip: 22.0.2
 ```
 
+### 前置依赖安装
+
+在编译 mamba-ssm 之前，需要先安装以下依赖：
+
+```bash
+# 基础 Python 包
+pip install einops ninja packaging transformers
+
+# triton - mamba-ssm 核心 GPU 算子库
+pip install triton
+```
+
+**triton 版本说明**:
+
+| 项目 | 版本要求 | 说明 |
+|------|----------|------|
+| **源码标注** | `triton==2.1.0` 或 `2.2.0` | mamba_ssm/ops/triton/ssd_combined.py |
+| **实际兼容** | `triton>=2.1.0` | 包括 3.x 版本 |
+| **Jetson 实测** | `triton 3.5.1` ✅ | 完全兼容 |
+
+**验证 triton 安装**:
+```bash
+python -c "import triton; print(f'Triton version: {triton.__version__}')"
+```
+
+### 依赖说明
+
+mamba-ssm 使用 triton 实现核心的 `selective_scan` 操作：
+
+```
+mamba_ssm/ops/triton/
+├── ssd_combined.py      # 主要的 selective_scan 实现
+├── ssd_bmm.py           # BMM 相关算子
+├── ssd_chunk_state.py   # 状态分块处理
+├── ssd_chunk_scan.py    # 分块扫描
+├── ssd_state_passing.py # 状态传递
+├── layer_norm.py        # 层归一化
+└── layernorm_gated.py   # 门控层归一化
+```
+
 ---
 
 ## 编译方法
