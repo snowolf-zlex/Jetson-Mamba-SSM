@@ -1,11 +1,22 @@
 # Jetson Mamba-SSM
 
+> **在 NVIDIA Jetson 上运行 YOLOv10 + Mamba SSM 的完整解决方案**
+
 ![Platform](https://img.shields.io/badge/Platform-Jetson%20Orin-32B3E6?logo=nvidia)
 ![Architecture](https://img.shields.io/badge/Architecture-ARM64-E96479?logo=arm)
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python)
 ![CUDA](https://img.shields.io/badge/CUDA-12.6-76B900?logo=nvidia)
 ![TensorRT](https://img.shields.io/badge/TensorRT-10.7.0-76B900?logo=nvidia)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
+---
+
+## 🌍 Language / 语言选择
+
+- **[🇺🇸 English](README.en-US.md)** - Complete documentation in English
+- **[🇨🇳 中文](README.zh-CN.md)** - 完整的中文文档
+
+---
 
 ## 项目定位
 
@@ -320,4 +331,17 @@ MIT License
 
 - [Mamba-SSM](https://github.com/state-spaces/mamba) - Tri Dao, Albert Gu
 - [causal-conv1d](https://github.com/Dao-AILab/causal-conv1d) - Tri Dao
-- [Ultralytics YOLOv10](https://github.com/THU-MIG/yolov10) - YOLOv10
+- [Ultralytics YOLOv10](https://github.com/THU-MIG/yolov10) - YOLOv10 Team
+
+---
+
+## 🤝 贡献
+
+欢迎贡献！请访问我们的 [GitHub 仓库](https://github.com/snowolf-zlex/Jetson-Mamba-SSM)：
+- 报告问题
+- 提交 Pull Request
+- 建议新功能
+
+---
+
+**关键词**: Jetson Mamba SSM, YOLOv10, TensorRT, ONNX, NVIDIA Jetson, ARM64, 深度学习，目标检测，状态空间模型，边缘 AI, 模型导出，推理优化
