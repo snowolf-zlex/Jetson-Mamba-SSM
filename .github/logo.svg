@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="60" viewBox="0 0 280 60">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#76B900;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#32B3E6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="280" height="60" rx="8" fill="#1a1a2e"/>
+  <!-- Icon -->
+  <circle cx="35" cy="30" r="18" fill="url(#grad)"/>
+  <path d="M 25 35 L 35 20 L 45 35 L 35 45 Z" fill="#1a1a2e" opacity="0.3"/>
+  <!-- Text -->
+  <text x="65" y="28" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">Jetson</text>
+  <text x="65" y="48" font-family="Arial, sans-serif" font-size="14" fill="#888888">Mamba-SSM</text>
+  <!-- Badge -->
+  <rect x="200" y="8" width="70" height="20" rx="4" fill="#76B900"/>
+  <text x="235" y="22" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#1a1a2e" text-anchor="middle">ARM64</text>
+  <rect x="200" y="32" width="70" height="20" rx="4" fill="#32B3E6"/>
+  <text x="235" y="46" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#1a1a2e" text-anchor="middle">TensorRT</text>
+</svg>

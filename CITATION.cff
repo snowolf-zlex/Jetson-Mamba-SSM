@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software in your work, please cite it using this file."
+title: "Jetson-Mamba-SSM: Complete Solution for Running YOLOv10 + Mamba SSM on NVIDIA Jetson"
+abstract: |
+  Jetson-Mamba-SSM enables running YOLOv10 with Mamba SSM modules on NVIDIA Jetson devices
+  (Orin/Xavier/Nano) with ARM64 architecture. It provides ONNX export, TensorRT engine
+  compilation, and multi-precision inference (FP32/FP16/INT8) support.
+type: software
+authors:
+  - family-names: "Jetson-Mamba-SSM Contributors"
+    website: "https://github.com/snowolf-zlex/Jetson-Mamba-SSM"
+license: MIT
+version: 1.0.0
+doi: "10.0.0/zenodo.xxxxxx"
+date-released: "2026-02-22"
+url: "https://github.com/snowolf-zlex/Jetson-Mamba-SSM"
+repository-code: "https://github.com/snowolf-zlex/Jetson-Mamba-SSM"
+repository: "snowolf-zlex/Jetson-Mamba-SSM"
+keywords:
+  - "mamba"
+  - "state-space-model"
+  - "ssm"
+  - "jetson"
+  - "nvidia"
+  - "arm64"
+  - "tensorrt"
+  - "onnx"
+  - "yolov10"
+  - "deep-learning"
+  - "object-detection"
+  - "edge-ai"
+  - "cuda"
